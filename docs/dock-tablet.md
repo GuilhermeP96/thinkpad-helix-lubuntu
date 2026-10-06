@@ -52,3 +52,5 @@ Because port rescanning remained intermittent, the service now invokes the helpe
 Serio indices changed from serio0/1 to higher values during the first controller rebind. The helper now discovers both direct i8042 ports by their description instead of fixed indices, including after rebind. The manual pointer-reset helper was updated for the same dynamic naming. A second manual run with this correction completed and registered all three physical input devices.
 
 The stronger strategy has **not yet been physically validated across repeated detach/reattach cycles**. Successful driver binding and device registration are not a claim of restored real input. No generic i8042 boot flags, upstream source patch, or long-term fix is claimed. The virtual keyboard was explicitly left available during testing.
+
+Additional controller-mode validation: two real dock events invoked the service and completed successfully. A temporary event-type counter observed physical keyboard, touchpad and TrackPoint events during these tests, without logging key codes or typed text. Owner confirmation of sustained desktop interaction remains pending.
