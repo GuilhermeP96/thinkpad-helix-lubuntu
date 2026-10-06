@@ -92,6 +92,8 @@ No firmware binary is redistributed here. Obtain it from its source and review i
 
 The included TLP profile keeps `schedutil` and Turbo enabled, favors responsiveness on AC and balanced energy use on battery. USB autosuspend is disabled for peripheral reliability; Wi-Fi power saving is disabled. These choices trade some battery savings for reliability. Existing thermald remains enabled; there is no manual fan control, overclocking, or removal of CPU security mitigations.
 
+Battery charge thresholds are now 60% start / 80% stop for both batteries, at the owner's request. Firmware readback confirmed both pairs and auto behavior; physical charging-cycle validation is pending, and the base battery still reports invalid capacity. See [battery care and temporary full-charge commands](docs/battery-care.md).
+
 Zram uses LZ4, 50% logical RAM capacity, priority 100; storage is allocated on demand. The existing small disk swap was retained. For the SSD, continuous `discard` was replaced with `defaults,noatime` on the root filesystem and `fstrim.timer` enabled. No machine-specific fstab UUIDs are published.
 
 ## Limits and reports
