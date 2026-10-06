@@ -1,0 +1,41 @@
+#!/usr/bin/python3
+"""Re-enumerate the Helix's two PS/2 ports after its base returns."""
+import os
+import time
+from pathlib import Path
+
+if os.geteuid() != 0:
+    raise SystemExit('Execute como root.')
+if Path('/sys/class/dmi/id/product_version').read_text().strip() != 'ThinkPad Helix':
+    raise SystemExit('Este helper é específico para ThinkPad Helix.')
+# Boot already initializes both ports; avoid disrupting cold-plug discovery.
+if float(Path('/proc/uptime').read_text().split()[0]) < 30:
+    print('Cold boot: normal driver initialization retained.', flush=True)
+    raise SystemExit(0)
+base = next((dock for dock in Path('/sys/devices/platform').glob('dock.*')
+             if (dock/'type').read_text().strip() == 'battery_bay'
+             and (dock/'firmware_node').resolve().name == 'PNP0C0A:01'), None)
+if base is None or (base/'docked').read_text().strip() != '1':
+    print('Base absent: no PS/2 reset.', flush=True)
+    raise SystemExit(0)
+ports = [('serio0', 'i8042 KBD port', 'atkbd'),
+         ('serio1', 'i8042 AUX port', 'psmouse')]
+for name, description, driver in ports:
+    port = Path('/sys/bus/serio/devices')/name
+    if not port.exists() or (port/'description').read_text().strip() != description:
+        raise SystemExit(f'Unexpected PS/2 port: {name}')
+    (port/'drvctl').write_text('rescan')
+    print(f'Rescan requested: {description}', flush=True)
+# drvctl queues the operation; wait for the resulting input devices.
+deadline = time.monotonic()+10
+while time.monotonic() < deadline:
+    ready = all((Path('/sys/bus/serio/devices')/name/'driver').resolve().name == driver
+                and list((Path('/sys/bus/serio/devices')/name).glob('input/input*'))
+                for name, description, driver in ports)
+    if ready:
+        names = [p.read_text().strip() for p in Path('/sys/devices/platform/i8042').glob('serio*/**/input/input*/name')]
+        if 'TPPS/2 IBM TrackPoint' in names:
+            print('PS/2 devices present: '+', '.join(sorted(set(names))), flush=True)
+            raise SystemExit(0)
+    time.sleep(.25)
+raise SystemExit('PS/2 input devices did not finish returning within 10 seconds.')

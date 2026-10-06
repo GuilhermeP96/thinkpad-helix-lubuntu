@@ -1,0 +1,13 @@
+# ThinkPad Helix PS/2 keyboard and touchpad fail after base detach/reattach
+
+Target: Ubuntu linux package on Launchpad. This is a follow-up symptom separate from the earlier RMI4 SMBus freeze.
+
+Environment: first-generation Lenovo ThinkPad Helix 370242P, BIOS GFET65WW 1.44, Ubuntu / Lubuntu 26.04.1 LTS, kernel 7.0.0-38-generic, LXQt / Openbox / X11. psmouse synaptics_intertouch=0 selected to avoid the independently recorded SMBus IRQ read errors.
+
+The owner repeatedly detached and reattached the physical base. Their configured virtual keyboard successfully appeared/disappeared and battery/charging changes were recognized, but the physical keyboard and touchpad did not resume. They rebooted to recover. TrackPoint behavior in those failed cycles was not separately confirmed.
+
+Previous-boot kernel logs showed ThinkPad docking/undocking and BAT1 registration. psmouse logged Synaptics min/max coordinate queries on reattachment. No new AT keyboard input-device registration appeared after the boot-time one. There was no new RMI4 transport in use, and the exact failure point between EC/i8042/atkbd/psmouse remains unknown.
+
+The local recovery helper now requests drvctl=rescan on the identified i8042 KBD and AUX ports, after a delayed native ACPI dock event, with BAT1 add as a fallback. Its initial manual run, while the base was already attached after reboot, successfully recreated AT Translated Set 2 keyboard, SynPS/2 Synaptics TouchPad and TPPS/2 IBM TrackPoint. Udev trigger configuration was checked. The owner confirmed the physical keyboard, touchpad and TrackPoint returned after one real cycle without reboot. Two further real dock events triggered the new service automatically and recreated all three devices; subjective confirmation of these additional cycles is pending. Long-term reliability and suspend/resume remain untested.
+
+No generic i8042 boot parameters, controller unbind, kernel patch, regression claim or bisection was introduced. Details: ../docs/dock-tablet.md. A native Launchpad report and package diagnostics are still pending authenticated submission.

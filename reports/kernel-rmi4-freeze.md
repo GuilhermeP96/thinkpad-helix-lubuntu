@@ -21,3 +21,5 @@ Expected behavior: the normal SMBus transport should continue accepting touchpad
 Unknowns: exact deterministic trigger, long-term stability, suspend/resume behavior, and behavior on a vanilla/mainline kernel. No bisection was performed; this is not claimed to be a new regression. The BIOS and batteries are old. No unrelated kernel parameters were changed.
 
 Sanitized hardware details and the workaround are available in this repository. A full boot journal is deliberately not public. A package-specific diagnostic attachment can be collected privately if maintainers request it.
+
+Subsequent validation: the owner later reported that repeated physical redocking, while using the PS/2 workaround, left the physical keyboard and touchpad unresponsive until reboot. This is tracked separately in [the PS/2 redock report](kernel-ps2-redock.md); the original workaround must not be presented as solving all hotplug behavior.

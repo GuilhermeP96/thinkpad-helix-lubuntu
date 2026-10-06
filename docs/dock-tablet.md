@@ -26,7 +26,21 @@ The battery hotplug symptom was [reported to LXQt as #495](https://github.com/lx
 - The monitor started docked and Onboard's Visible property became false. Explicit D-Bus Show and Hide were also checked against Visible=true/false.
 - Refreshing the power manager restored two registered LXQt battery tray items, with one live manager process.
 - A temporary filesystem check passed: docked / detached / reattached transitions, ignoring the ATA bay, and retaining the firmware tablet switch.
-- The full physical detach/show/reattach/hide cycle after the changes is awaiting the owner's confirmation. A subsequent login/reboot with the new helper is also pending.
+- The owner later confirmed that repeated detach/reattach cycles show/hide the virtual keyboard and update charging behavior. However, the physical keyboard and touchpad did not return, requiring a reboot. A separate PS/2 recovery is being validated below.
 - BAT1's reported capacity is still invalid. Restoring its indicator does not repair its gauge or prove usable battery capacity.
 
 References: [Onboard D-Bus API](https://github.com/onboard-osk/onboard/blob/main/DBUS.md), [LXQt 2.3.0 battery watcher](https://github.com/lxqt/lxqt-powermanagement/blob/2.3.0/src/batterywatcher.cpp).
+
+## Physical keyboard / touchpad recovery after redocking
+
+After several physical cycles, the owner reported that tablet/virtual-keyboard transitions and charging behavior worked but the physical keyboard and touchpad did not return until reboot. Previous-boot logs showed docking and BAT1 registration, plus partial psmouse reconnect queries; no new AT keyboard device appeared on redocking.
+
+The installed local workaround triggers helix-dock-input.service on the native ACPI battery-bay EVENT=dock notification; undocking cancels a pending recovery. A BAT1 add rule is a secondary trigger. The BAT1 power-supply node was reused during a physical cycle, so relying only on add did not reliably trigger the service. It waits two seconds, checks the ThinkPad Helix model and the specific base battery bay, then writes rescan to the identified i8042 keyboard and AUX serio ports. This requests full input-device re-enumeration, retaining the existing PS/2 transport choice. Cold-boot events in the first 30 seconds are skipped. The helper waits for keyboard, touchpad and TrackPoint input-device registration, with a timeout.
+
+The first manual service run succeeded and kernel logs showed a new AT keyboard, SynPS/2 touchpad and TrackPoint. The udev dry-run confirmed SYSTEMD_WANTS=helix-dock-input.service. Device registration is evidence of re-enumeration, not proof that physical input works after a real redock. The owner confirmed that keyboard, touchpad and TrackPoint worked after one detach/reattach cycle without reboot. Two subsequent native dock events automatically started and successfully completed the service; physical confirmation of those additional cycles is pending.
+
+The session monitor delays hiding the virtual keyboard briefly on return to the base and waits while the recovery service is activating. If that service fails, it leaves the virtual keyboard available and reports the failure. Existing root-owned helper and system service require no new passwordless polkit or sudo grants.
+
+Installation on the matching Helix requires the included root helper, systemd service and udev rule, followed by systemctl daemon-reload and udevadm control --reload-rules. This is a local workaround, not an upstream kernel patch. To remove it, remove the rule and service, reload udev/systemd, and restore the previous session helper to remove its recovery-service dependency.
+
+Validation also passed udev rule verification, systemd unit verification and Python syntax checks. Both batteries retained 60/80 charge limits after the physical cycles.

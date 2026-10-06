@@ -136,15 +136,25 @@ def daemon():
         print('Accelerometer unavailable:', error, file=sys.stderr, flush=True)
         proxy = None
     state = {'tablet': None, 'orientation': None, 'keyboard_pending': False,
+             'keyboard_due_at': 0,
              'batteries': battery_topology(), 'battery_changed_at': None}
     def tick():
         try:
             tablet = tablet_mode()
             if tablet != state['tablet']:
                 state['keyboard_pending'] = True
+                state['keyboard_due_at'] = (time.monotonic() + 4
+                    if not tablet and state['tablet'] is True else 0)
                 print('Tablet mode:', tablet, flush=True)
-            if state['keyboard_pending'] and keyboard(tablet):
-                state['keyboard_pending'] = False
+            if state['keyboard_pending'] and time.monotonic() >= state['keyboard_due_at']:
+                recovery = ('inactive' if tablet else run('systemctl', 'show',
+                    'helix-dock-input.service', '--property=ActiveState', '--value'))
+                if recovery == 'failed' and not tablet:
+                    keyboard(True)
+                    notify('A recuperação do teclado físico falhou. O teclado virtual continua disponível.')
+                    state['keyboard_pending'] = False
+                elif recovery != 'activating' and keyboard(tablet):
+                    state['keyboard_pending'] = False
             batteries = battery_topology()
             if batteries != state['batteries']:
                 state['batteries'] = batteries

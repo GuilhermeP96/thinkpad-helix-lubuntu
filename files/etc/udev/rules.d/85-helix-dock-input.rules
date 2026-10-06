@@ -1,0 +1,6 @@
+# Native dock event is emitted even when the BAT1 power-supply node is reused.
+# The root-owned helper checks the Helix model and confirms base attachment.
+ACTION=="change", SUBSYSTEM=="platform", KERNEL=="dock.*", ATTR{type}=="battery_bay", ENV{EVENT}=="dock", RUN+="/usr/bin/systemctl --no-block start helix-dock-input.service"
+ACTION=="change", SUBSYSTEM=="platform", KERNEL=="dock.*", ATTR{type}=="battery_bay", ENV{EVENT}=="undock", RUN+="/usr/bin/systemctl --no-block stop helix-dock-input.service"
+# Also handle a newly created base-battery device; cold boot is skipped.
+ACTION=="add", SUBSYSTEM=="power_supply", KERNEL=="BAT1", TAG+="systemd", ENV{SYSTEMD_WANTS}+="helix-dock-input.service"
