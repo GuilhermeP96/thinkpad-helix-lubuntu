@@ -76,7 +76,7 @@ The following shortcuts were registered through `org.lxqt.global_key_shortcuts.d
 | Ctrl+Alt+A | `helix-controls auto` |
 | Ctrl+Alt+P | `helix-controls recover` (administrative password) |
 
-The mic mute key was bound to `wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle`. Touchpad, WLAN and rotation keys were bound to the corresponding `helix-controls` arguments if the hardware emits their XF86 keysyms. Existing brightness and volume shortcuts were retained.
+Lenovo hotkeys now include microphone and brightness feedback, Wi-Fi toggle, configuration center, application search, running-window list and application menu. The owner confirmed the tested special keys respond with Fn. Existing LXQt panel volume actions remain in use. See [the hotkey mapping and validation notes](docs/hotkeys.md); the owner also confirmed Fn+F10/F11/F12 work. Touchpad and rotation keys use `helix-controls` when the hardware emits their XF86 keysyms.
 
 ### Bluetooth firmware
 

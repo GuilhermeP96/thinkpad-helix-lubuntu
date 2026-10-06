@@ -1,0 +1,45 @@
+#!/usr/bin/python3
+"""Feedback and desktop actions for the Helix's special keys (LXQt/X11)."""
+import subprocess
+import sys
+from pathlib import Path
+
+def run(*args):
+    return subprocess.check_output(args, text=True, timeout=10).strip()
+
+def notify(message, icon):
+    subprocess.run(['notify-send', '-r', '3702', '-t', '1800', '-i', icon,
+                    'ThinkPad Helix', message], check=True, timeout=5)
+
+def main(action):
+    if action == 'mic':
+        run('wpctl', 'set-mute', '@DEFAULT_AUDIO_SOURCE@', 'toggle')
+        muted = '[MUTED]' in run('wpctl', 'get-volume', '@DEFAULT_AUDIO_SOURCE@')
+        notify('Microfone silenciado' if muted else 'Microfone ativado',
+               'microphone-sensitivity-muted' if muted else 'audio-input-microphone')
+    elif action in ('brightness-up', 'brightness-down'):
+        run('lxqt-config-brightness', '-i' if action.endswith('up') else '-d')
+        paths = list(Path('/sys/class/backlight').glob('*'))
+        if len(paths) == 1:
+            value = int((paths[0]/'brightness').read_text())
+            maximum = int((paths[0]/'max_brightness').read_text())
+            notify(f'Brilho: {round(value * 100 / maximum)}%', 'display-brightness')
+    elif action == 'wifi':
+        enabled = run('nmcli', 'radio', 'wifi') == 'enabled'
+        run('nmcli', 'radio', 'wifi', 'off' if enabled else 'on')
+        notify('Wi-Fi desligado' if enabled else 'Wi-Fi ligado', 'network-wireless')
+    elif action == 'settings':
+        subprocess.Popen(['lxqt-config'])
+    elif action == 'search':
+        run('xdotool', 'key', '--clearmodifiers', 'super+r')
+    elif action == 'applications':
+        run('xdotool', 'key', '--clearmodifiers', 'Super_L')
+    else:
+        raise ValueError('Ação desconhecida')
+
+if __name__ == '__main__':
+    try:
+        main(sys.argv[1])
+    except (OSError, ValueError, IndexError, subprocess.SubprocessError) as error:
+        print(error, file=sys.stderr)
+        sys.exit(1)
