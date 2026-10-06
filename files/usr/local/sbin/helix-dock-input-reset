@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 """Re-enumerate the Helix's two PS/2 ports after its base returns."""
 import os
+import sys
+import signal
 import time
 from pathlib import Path
 
@@ -8,6 +10,13 @@ if os.geteuid() != 0:
     raise SystemExit('Execute como root.')
 if Path('/sys/class/dmi/id/product_version').read_text().strip() != 'ThinkPad Helix':
     raise SystemExit('Este helper é específico para ThinkPad Helix.')
+controller = Path('/sys/bus/platform/drivers/i8042')
+if sys.argv[1:] == ['--restore-controller']:
+    if not (controller/'i8042').exists():
+        (controller/'bind').write_text('i8042')
+    raise SystemExit(0)
+if sys.argv[1:] not in ([], ['--controller']):
+    raise SystemExit('Uso: helix-dock-input-reset [--controller|--restore-controller]')
 # Boot already initializes both ports; avoid disrupting cold-plug discovery.
 if float(Path('/proc/uptime').read_text().split()[0]) < 30:
     print('Cold boot: normal driver initialization retained.', flush=True)
@@ -18,20 +27,43 @@ base = next((dock for dock in Path('/sys/devices/platform').glob('dock.*')
 if base is None or (base/'docked').read_text().strip() != '1':
     print('Base absent: no PS/2 reset.', flush=True)
     raise SystemExit(0)
-ports = [('serio0', 'i8042 KBD port', 'atkbd'),
-         ('serio1', 'i8042 AUX port', 'psmouse')]
-for name, description, driver in ports:
-    port = Path('/sys/bus/serio/devices')/name
-    if not port.exists() or (port/'description').read_text().strip() != description:
-        raise SystemExit(f'Unexpected PS/2 port: {name}')
-    (port/'drvctl').write_text('rescan')
-    print(f'Rescan requested: {description}', flush=True)
+ports = [('i8042 KBD port', 'atkbd'), ('i8042 AUX port', 'psmouse')]
+def find_port(description):
+    # Serio numbers change when the controller is rebound.
+    for port in Path('/sys/devices/platform/i8042').glob('serio*'):
+        try:
+            if (port/'description').read_text().strip() == description:
+                return port
+        except OSError:
+            continue
+    return None
+for description, driver in ports:
+    if find_port(description) is None:
+        raise SystemExit(f'Missing PS/2 port: {description}')
+if sys.argv[1:] == ['--controller']:
+    def cancelled(signum, frame):
+        raise SystemExit('Controller recovery cancelled; restoring the driver.')
+    signal.signal(signal.SIGTERM, cancelled)
+    try:
+        (controller/'unbind').write_text('i8042')
+        print('i8042 controller detached; rebuilding ports and IRQs.', flush=True)
+        time.sleep(.25)
+    finally:
+        if not (controller/'i8042').exists():
+            (controller/'bind').write_text('i8042')
+        print('i8042 controller rebound.', flush=True)
+else:
+    for description, driver in ports:
+        port = find_port(description)
+        (port/'drvctl').write_text('rescan')
+        print(f'Rescan requested: {description}', flush=True)
 # drvctl queues the operation; wait for the resulting input devices.
 deadline = time.monotonic()+10
 while time.monotonic() < deadline:
-    ready = all((Path('/sys/bus/serio/devices')/name/'driver').resolve().name == driver
-                and list((Path('/sys/bus/serio/devices')/name).glob('input/input*'))
-                for name, description, driver in ports)
+    ready = all((port := find_port(description)) is not None
+                and (port/'driver').resolve().name == driver
+                and list(port.glob('input/input*'))
+                for description, driver in ports)
     if ready:
         names = [p.read_text().strip() for p in Path('/sys/devices/platform/i8042').glob('serio*/**/input/input*/name')]
         if 'TPPS/2 IBM TrackPoint' in names:

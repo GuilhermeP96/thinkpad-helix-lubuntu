@@ -11,6 +11,8 @@ if Path('/sys/class/dmi/id/product_version').read_text().strip() != 'ThinkPad He
 subprocess.run(['/usr/sbin/modprobe', '-r', 'psmouse'], check=True)
 subprocess.run(['/usr/sbin/modprobe', 'psmouse', 'synaptics_intertouch=0'], check=True)
 # An AUX port previously using SMBus may need an explicit reprobe.
-port = Path('/sys/bus/serio/devices/serio1')
-if port.exists() and not (port / 'driver').exists():
-    (port / 'drvctl').write_text('rescan')
+ports = Path('/sys/devices/platform/i8042').glob('serio*')
+for port in ports:
+    if ((port / 'description').read_text().strip() == 'i8042 AUX port'
+            and not (port / 'driver').exists()):
+        (port / 'drvctl').write_text('rescan')

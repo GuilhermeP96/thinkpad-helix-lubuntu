@@ -37,7 +37,7 @@ Resetting the specific RMI4 SMBus device restored both pointers. The persistent 
 options psmouse synaptics_intertouch=0
 ```
 
-After changing this file, regenerate the initramfs with `sudo update-initramfs -u`. Reboot when convenient. This selects PS/2; it does not disable the touchpad, TrackPoint, pen, or touchscreen. It can have different reporting characteristics from SMBus. On this machine the owner verified both pointers after the change. The owner later found that repeated redocking could leave the physical keyboard and touchpad unresponsive until reboot. A separate local re-enumeration workaround restored the physical devices in the owner's first test; see [dock/tablet notes](docs/dock-tablet.md). Long-term stability and suspend/resume remain untested.
+After changing this file, regenerate the initramfs with `sudo update-initramfs -u`. Reboot when convenient. This selects PS/2; it does not disable the touchpad, TrackPoint, pen, or touchscreen. It can have different reporting characteristics from SMBus. On this machine the owner verified both pointers after the change. The owner later found that repeated redocking could leave the physical keyboard and touchpad unresponsive until reboot. Port rescanning worked in the first test but failed intermittently in later cycles. A stronger controller-rebind experiment still needs repeated physical validation; see [dock/tablet notes](docs/dock-tablet.md). Long-term stability and suspend/resume remain untested.
 
 To revert, remove only this override, regenerate the initramfs and reboot. The original SMBus freeze may return.
 

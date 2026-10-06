@@ -4,6 +4,7 @@ Description=Recover ThinkPad Helix keyboard and pointers after base attachment
 [Service]
 Type=oneshot
 ExecStartPre=/usr/bin/sleep 2
-ExecStart=/usr/local/sbin/helix-dock-input-reset
-TimeoutStartSec=20
-TimeoutStopSec=5
+ExecStart=/usr/local/sbin/helix-dock-input-reset --controller
+ExecStopPost=/usr/local/sbin/helix-dock-input-reset --restore-controller
+TimeoutStartSec=25
+TimeoutStopSec=20
