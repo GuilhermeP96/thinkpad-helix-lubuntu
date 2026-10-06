@@ -37,3 +37,9 @@ sudo tlp setcharge 60 80 BAT1
 To return permanently to full-charge defaults, configure start 0 / stop 100 for both batteries and run `sudo tlp start`. Back up the configuration first.
 
 See the [TLP battery care settings](https://linrunner.de/tlp/settings/battery.html) and [command documentation](https://linrunner.de/tlp/usage/tlp.html). Behavior was verified against the installed TLP 1.8.0 configuration and exposed kernel values; later TLP versions may have different defaults.
+
+## Low tablet charge during detachment
+
+During repeated docking tests BAT0 reported 7% and was charging on AC, while BAT1 reported 100% with its implausible capacity. Once the base is physically detached, BAT1 cannot power the tablet. Its displayed charge therefore cannot prevent a genuine low-BAT0 condition. LXQt was configured to hibernate below 10%, with a 60-second warning.
+
+The current system has no configured resume device (sysfs resume 0:0); disk swap is only 512 MiB, with the remaining swap in zram. Hibernation is not configured for reliable resume. The user setting powerLowAction was changed from 1 (hibernate) to 4 (suspend), retaining powerLowLevel=10 and powerLowWarning=60. The power indicator service was restarted successfully. Suspension still consumes some battery; this change does not extend autonomy or protect unsaved work indefinitely. Charge BAT0 before further undocked tests. This action has not been physically triggered as a validation test.
