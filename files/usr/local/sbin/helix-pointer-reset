@@ -1,0 +1,16 @@
+#!/usr/bin/python3
+"""Reinitialize only mouse devices on this ThinkPad Helix."""
+import os
+import subprocess
+from pathlib import Path
+
+if os.geteuid() != 0:
+    raise SystemExit('Execute com pkexec ou sudo.')
+if Path('/sys/class/dmi/id/product_version').read_text().strip() != 'ThinkPad Helix':
+    raise SystemExit('Este comando é específico para ThinkPad Helix.')
+subprocess.run(['/usr/sbin/modprobe', '-r', 'psmouse'], check=True)
+subprocess.run(['/usr/sbin/modprobe', 'psmouse', 'synaptics_intertouch=0'], check=True)
+# An AUX port previously using SMBus may need an explicit reprobe.
+port = Path('/sys/bus/serio/devices/serio1')
+if port.exists() and not (port / 'driver').exists():
+    (port / 'drvctl').write_text('rescan')

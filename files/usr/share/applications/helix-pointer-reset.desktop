@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Helix — Recuperar touchpad e TrackPoint
+Comment=Reinicializa os ponteiros da base; solicita senha administrativa
+Exec=/usr/local/bin/helix-controls recover
+Icon=input-mouse
+Categories=Settings;HardwareSettings;
+Terminal=false

@@ -1,0 +1,20 @@
+{
+  "model": "Lenovo ThinkPad Helix (first generation)",
+  "machine_type": "370242P",
+  "bios": "GFET65WW 1.44",
+  "cpu": "Intel Core i7-3667U",
+  "ram": "8 GB",
+  "graphics": "Intel HD Graphics 4000 / i915",
+  "wifi": "Intel Centrino Advanced-N 6205 / iwlwifi",
+  "bluetooth": "Broadcom BCM20702A1 0a5c:21e6",
+  "touchpad": "Synaptics TM2219-002 / LEN0033; PS/2 transport after SMBus failures",
+  "trackpoint": "TPPS/2 IBM TrackPoint",
+  "touchscreen": "Atmel maXTouch 03eb:8406",
+  "pen": "Wacom ISDv4 EC 056a:00ec",
+  "cameras": "Chicony 04f2:b394 and 04f2:b37e / uvcvideo",
+  "os": "Lubuntu / Ubuntu 26.04.1 LTS",
+  "kernel": "7.0.0-38-generic",
+  "libinput": "1.31.1",
+  "touchegg": "2.0.18",
+  "session": "LXQt 2.3 / Openbox / X11"
+}

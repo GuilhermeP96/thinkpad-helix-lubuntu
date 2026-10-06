@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Helix — Bloquear/desbloquear rotação automática
+Exec=/usr/local/bin/helix-controls auto
+Icon=rotation-allowed
+Categories=Settings;HardwareSettings;
+Terminal=false

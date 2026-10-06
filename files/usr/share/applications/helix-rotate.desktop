@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Helix — Girar tela
+Comment=Gira a tela, o touch e a caneta juntos
+Exec=/usr/local/bin/helix-controls rotate
+Icon=object-rotate-left
+Categories=Settings;HardwareSettings;
+Terminal=false

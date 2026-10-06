@@ -1,0 +1,4 @@
+# Compressed swap, allocated on demand, preferred over SSD swap.
+ALGO=lz4
+PERCENT=50
+PRIORITY=100

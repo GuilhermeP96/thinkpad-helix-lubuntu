@@ -1,0 +1,6 @@
+# Helix 3702: recognize lighter touches sooner; retain palm/thumb rejection.
+[ThinkPad Helix lighter touch]
+MatchUdevType=touchpad
+MatchName=SynPS/2 Synaptics TouchPad
+MatchDMIModalias=dmi:*:svnLENOVO:pn3702*:*
+AttrPressureRange=20:15
