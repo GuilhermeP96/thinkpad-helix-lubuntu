@@ -78,6 +78,10 @@ The following shortcuts were registered through `org.lxqt.global_key_shortcuts.d
 
 Lenovo hotkeys now include microphone and brightness feedback, Wi-Fi toggle, configuration center, application search, running-window list and application menu. The owner confirmed the tested special keys respond with Fn. Existing LXQt panel volume actions remain in use. See [the hotkey mapping and validation notes](docs/hotkeys.md); the owner also confirmed Fn+F10/F11/F12 work. Touchpad and rotation keys use `helix-controls` when the hardware emits their XF86 keysyms.
 
+### Night light
+
+The existing Redshift-Qt application was running with an invisible tray icon under the Oxygen theme. A user hicolor fallback using installed Papirus icons restored its advertised status icon, and Show Info opened a visible window. Automatic daytime/nighttime defaults remain unchanged. See [the diagnosis and workaround](docs/night-light.md).
+
 ### Bluetooth firmware
 
 The distribution's installed firmware package did not supply the file requested by the Broadcom controller. The matching `brcm/BCM20702A1-0a5c-21e6.hcd` was obtained from [winterheart/broadcom-bt-firmware](https://github.com/winterheart/broadcom-bt-firmware), checked against that project's device checksum and parsed as an HCD stream before installation. Reloading `btusb` changed the kernel-reported firmware build from 0000 to 1757.
