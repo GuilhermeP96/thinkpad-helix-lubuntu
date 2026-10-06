@@ -47,7 +47,7 @@ The Xorg InputClass enables tapping, two-finger scrolling, natural scrolling, cl
 
 The local libinput quirk sets `AttrPressureRange=20:15`, scoped to Lenovo type 3702 and the PS/2 touchpad name. A fresh libinput diagnostic context accepted the range. **Log out and back in to apply it to Xorg. Physical validation after login is pending.** Palm and thumb rejection remain enabled. Local quirks are version-dependent; see the [libinput calibration instructions](https://wayland.freedesktop.org/libinput/doc/latest/touchpad-pressure-debugging.html).
 
-Touchégg's default automatic thresholds on this device were start `24.1282`, horizontal finish `339.82`, vertical finish `217.154`. The final daemon override uses `--daemon 1.5 35`, and repeated two-finger zoom shortcuts use `times=4`. The owner reported improved responsiveness after tuning. These are subjective device-specific settings, not universal defaults.
+Touchégg's default automatic thresholds on this device were start `24.1282`, horizontal finish `339.82`, vertical finish `217.154`. The final daemon override uses `--daemon 1.5 35`, and repeated two-finger zoom shortcuts use `times=5` when pinching in (zoom out) and `times=4` when pinching out (zoom in). The extra zoom-out step was requested subsequently and still needs subjective validation. The owner reported improved responsiveness after tuning. These are subjective device-specific settings, not universal defaults.
 
 | Gesture | Action |
 |---|---|
