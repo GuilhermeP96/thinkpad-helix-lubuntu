@@ -4,10 +4,12 @@ import os
 import re
 import subprocess
 import sys
+import signal
+import time
 from pathlib import Path
 
 CONFIG = Path.home() / '.config/helix'
-CONFIG.mkdir(exist_ok=True)
+CONFIG.mkdir(parents=True, exist_ok=True)
 LOCK = CONFIG / 'rotation-locked'
 MATRICES = {
     'normal': '1 0 0 0 1 0 0 0 1',
@@ -42,39 +44,143 @@ def rotate(orientation):
                 *MATRICES[orientation].split())
     return True
 
+_onboard_process = None
+
+def keyboard(visible=None):
+    """Show/hide explicitly on a mode transition; retain manual toggle support."""
+    global _onboard_process
+    from gi.repository import Gio, GLib
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    method = 'ToggleVisible' if visible is None else ('Show' if visible else 'Hide')
+    try:
+        bus.call_sync('org.onboard.Onboard', '/org/onboard/Onboard/Keyboard',
+            'org.onboard.Onboard.Keyboard', method, None, None,
+            Gio.DBusCallFlags.NONE, 1000, None)
+        return True
+    except GLib.Error as error:
+        # Hide must not launch an unnecessary keyboard while docked.
+        if visible is False:
+            return not bus.call_sync('org.freedesktop.DBus', '/org/freedesktop/DBus',
+                'org.freedesktop.DBus', 'NameHasOwner',
+                GLib.Variant('(s)', ('org.onboard.Onboard',)), None,
+                Gio.DBusCallFlags.NONE, 1000, None).unpack()[0]
+        if _onboard_process is None or _onboard_process.poll() is not None:
+            _onboard_process = subprocess.Popen(['/usr/bin/onboard'],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return False  # The monitor retries once the D-Bus service is ready.
+
+def tablet_mode():
+    """Include the Helix base bay: firmware tablet switch alone can miss detach."""
+    firmware = Path('/sys/devices/platform/thinkpad_acpi/hotkey_tablet_mode')
+    tablet = firmware.exists() and firmware.read_text().strip() == '1'
+    for dock in sorted(Path('/sys/devices/platform').glob('dock.*')):
+        try:
+            if ((dock / 'type').read_text().strip() == 'battery_bay'
+                    and (dock / 'firmware_node').resolve().name == 'PNP0C0A:01'):
+                return tablet or (dock / 'docked').read_text().strip() == '0'
+        except OSError:
+            continue
+    return tablet
+
+def battery_topology():
+    batteries = []
+    for battery in sorted(Path('/sys/class/power_supply').glob('BAT*')):
+        try:
+            if (battery / 'present').read_text().strip() == '1':
+                batteries.append(battery.name)
+        except OSError:
+            continue
+    return tuple(batteries)
+
+def refresh_power_indicator():
+    """Refresh LXQt's startup battery list after a debounced hotplug event."""
+    from gi.repository import Gio, GLib
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    service = 'org.lxqt.lxqt-powermanagement'
+    def dbus(method, value):
+        return bus.call_sync('org.freedesktop.DBus', '/org/freedesktop/DBus',
+            'org.freedesktop.DBus', method, GLib.Variant('(s)', (value,)),
+            None, Gio.DBusCallFlags.NONE, 1000, None).unpack()[0]
+    try:
+        pid = dbus('GetConnectionUnixProcessID', service)
+        os.kill(pid, signal.SIGTERM)
+    except (GLib.Error, ProcessLookupError):
+        pass
+    attempts = {'count': 0}
+    def launch():
+        attempts['count'] += 1
+        try:
+            if not dbus('NameHasOwner', service):
+                subprocess.run(['systemctl', '--user', 'import-environment',
+                    'DISPLAY', 'XAUTHORITY'], check=True, timeout=5)
+                subprocess.run(['systemctl', '--user', 'restart',
+                    'helix-power-indicator.service'], check=True, timeout=5)
+                print('Battery indicator refreshed:', battery_topology(), flush=True)
+                return False
+        except (GLib.Error, OSError, subprocess.SubprocessError) as error:
+            print(error, file=sys.stderr, flush=True)
+            return False
+        return attempts['count'] < 10
+    GLib.timeout_add(500, launch)
+
 def daemon():
     from gi.repository import Gio, GLib
     bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
-    proxy = Gio.DBusProxy.new_sync(bus, Gio.DBusProxyFlags.NONE, None,
-        'net.hadess.SensorProxy', '/net/hadess/SensorProxy',
-        'net.hadess.SensorProxy', None)
-    proxy.call_sync('ClaimAccelerometer', None, Gio.DBusCallFlags.NONE, 5000, None)
-    state = {'tablet': False, 'orientation': None}
+    proxy = None
+    try:
+        proxy = Gio.DBusProxy.new_sync(bus, Gio.DBusProxyFlags.NONE, None,
+            'net.hadess.SensorProxy', '/net/hadess/SensorProxy',
+            'net.hadess.SensorProxy', None)
+        proxy.call_sync('ClaimAccelerometer', None, Gio.DBusCallFlags.NONE, 3000, None)
+    except GLib.Error as error:
+        print('Accelerometer unavailable:', error, file=sys.stderr, flush=True)
+        proxy = None
+    state = {'tablet': None, 'orientation': None, 'keyboard_pending': False,
+             'batteries': battery_topology(), 'battery_changed_at': None}
     def tick():
         try:
-            tablet = Path('/sys/devices/platform/thinkpad_acpi/hotkey_tablet_mode').read_text().strip() == '1'
+            tablet = tablet_mode()
+            if tablet != state['tablet']:
+                state['keyboard_pending'] = True
+                print('Tablet mode:', tablet, flush=True)
+            if state['keyboard_pending'] and keyboard(tablet):
+                state['keyboard_pending'] = False
+            batteries = battery_topology()
+            if batteries != state['batteries']:
+                state['batteries'] = batteries
+                state['battery_changed_at'] = time.monotonic()
+            refresh = CONFIG / 'refresh-batteries'
+            if refresh.exists():
+                refresh.unlink()
+                state['battery_changed_at'] = time.monotonic() - 4
+            if (state['battery_changed_at'] is not None
+                    and time.monotonic() - state['battery_changed_at'] >= 4):
+                refresh_power_indicator()
+                state['battery_changed_at'] = None
             if not LOCK.exists() and (tablet or state['tablet']) and display() is not None:
-                if tablet:
+                if tablet and proxy is not None:
                     value = proxy.get_cached_property('AccelerometerOrientation')
                     orientation = {'normal':'normal', 'bottom-up':'inverted',
                         'left-up':'left', 'right-up':'right'}.get(value.unpack() if value else '')
                     if orientation and (orientation != state['orientation'] or not state['tablet']):
                         rotate(orientation)
                         state['orientation'] = orientation
-                elif state['tablet']:
+                elif not tablet and state['tablet']:
                     rotate('normal')
                     state['orientation'] = None
             else:
                 state['orientation'] = None
             state['tablet'] = tablet
-        except (OSError, subprocess.SubprocessError) as error:
+        except (OSError, subprocess.SubprocessError, GLib.Error) as error:
             print(error, file=sys.stderr, flush=True)
         return True
-    GLib.timeout_add_seconds(2, tick)
+    tick()
+    GLib.timeout_add_seconds(1, tick)
     try:
         GLib.MainLoop().run()
     finally:
-        proxy.call_sync('ReleaseAccelerometer', None, Gio.DBusCallFlags.NONE, 5000, None)
+        if proxy is not None:
+            proxy.call_sync('ReleaseAccelerometer', None, Gio.DBusCallFlags.NONE, 1000, None)
 
 def main():
     action = sys.argv[1] if len(sys.argv) > 1 else 'rotate'
@@ -96,14 +202,7 @@ def main():
             LOCK.touch()
             notify('Rotação automática bloqueada.')
     elif action == 'keyboard':
-        from gi.repository import Gio, GLib
-        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-        try:
-            bus.call_sync('org.onboard.Onboard', '/org/onboard/Onboard/Keyboard',
-                'org.onboard.Onboard.Keyboard', 'ToggleVisible', None, None,
-                Gio.DBusCallFlags.NONE, 2000, None)
-        except GLib.Error:
-            subprocess.Popen(['onboard'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        keyboard()
     elif action == 'touchpad':
         devices = run('xinput', '--list', '--name-only').splitlines()
         name = next(n for n in ('Synaptics TM2219-002', 'SynPS/2 Synaptics TouchPad') if n in devices)
@@ -115,10 +214,12 @@ def main():
         result = subprocess.run(['pkexec', '/usr/local/sbin/helix-pointer-reset'])
         if result.returncode == 0:
             notify('Touchpad e TrackPoint reinicializados. Afaste a caneta da tela.')
+    elif action == 'refresh-batteries':
+        (CONFIG / 'refresh-batteries').touch()
     elif action == 'wifi':
         run('nmcli', 'radio', 'wifi', 'off' if run('nmcli', 'radio', 'wifi') == 'enabled' else 'on')
     else:
-        raise SystemExit('Uso: helix-controls rotate|normal|auto|keyboard|touchpad|recover|wifi|daemon')
+        raise SystemExit('Uso: helix-controls rotate|normal|auto|keyboard|touchpad|recover|refresh-batteries|wifi|daemon')
 
 if __name__ == '__main__':
     main()

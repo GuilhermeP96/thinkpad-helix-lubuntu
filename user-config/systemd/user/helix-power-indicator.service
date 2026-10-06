@@ -1,0 +1,7 @@
+[Unit]
+Description=LXQt battery indicator refreshed after Helix base hotplug
+
+[Service]
+ExecStart=/usr/bin/lxqt-powermanagement
+Restart=on-failure
+RestartSec=2

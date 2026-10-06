@@ -64,7 +64,7 @@ Zoom uses keyboard shortcuts and remains discrete and application-dependent unde
 
 ### Tablet controls
 
-`helix-controls daemon` starts through XDG autostart in LXQt. It claims the accelerometer and rotates only when `thinkpad_acpi` reports tablet mode. Automatic rotation pauses with another active display. Manual rotation synchronizes screen and the Atmel/Wacom coordinate transformations. A lock file is stored under `~/.config/helix/`.
+`helix-controls daemon` starts through XDG autostart in LXQt. It detects tablet mode through the firmware switch and the Helix base battery bay, automatically shows Onboard when detached and hides it on reattachment. It also refreshes the LXQt battery indicator after a debounced battery-topology change; install the included user service as described in [dock/tablet notes](docs/dock-tablet.md). Accelerometer failure does not disable keyboard or battery monitoring. Rotation is limited to tablet mode. Automatic rotation pauses with another active display. Manual rotation synchronizes screen and the Atmel/Wacom coordinate transformations. A lock file is stored under `~/.config/helix/`.
 
 The following shortcuts were registered through `org.lxqt.global_key_shortcuts.daemon.addCommandAction`, rather than replacing the user's shortcut configuration:
 

@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=ThinkPad Helix — rotação no modo tablet
+Name=ThinkPad Helix — tablet, teclado virtual e base
 Exec=/usr/local/bin/helix-controls daemon
 OnlyShowIn=LXQt;
 NoDisplay=true
